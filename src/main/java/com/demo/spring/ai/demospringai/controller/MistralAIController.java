@@ -2,6 +2,8 @@ package com.demo.spring.ai.demospringai.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.SystemPromptTemplate;
@@ -10,14 +12,17 @@ import org.springframework.ai.mistralai.MistralAiChatOptions;
 import org.springframework.ai.mistralai.api.MistralAiApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
 public class MistralAIController {
+
     private final MistralAiChatModel mistralAiChatModel;
 
     @Value("${spring.ai.mistralai.api-key}")
@@ -54,8 +59,7 @@ public class MistralAIController {
                 - summary pour un petit résumé du film
                 """);
         Prompt prompt = systemPromptTemplate.create(Map.of("year", year, "category", category));
-        ChatResponse chatResponse = chatModel.call(prompt);
-        return chatResponse;
+        return chatModel.call(prompt);
     }
 
     @GetMapping("/mistralai/json/movies")
@@ -114,4 +118,21 @@ public class MistralAIController {
         return new ObjectMapper().readValue(content,Map.class);
     }
 
+    @GetMapping("/mistralai/chat/query")
+    public String chatPdf(String query){
+        MistralAiApi mistralAiApi = new MistralAiApi(API_KEY);
+
+        MistralAiChatOptions options = MistralAiChatOptions.builder()
+                .withModel(MistralAiApi.ChatModel.LARGE.getValue())
+                .withTemperature(0.8F)
+                .withMaxTokens(800).build();
+
+        MistralAiChatModel chatModel = new MistralAiChatModel(mistralAiApi, options);
+
+        SystemMessage systemMessage = new SystemMessage("Vous etes un assitant qui faire une synthèse JSON de la question posée par l'utilisateur");
+        UserMessage userMessage = new UserMessage(query);
+
+        Prompt prompt = new Prompt(List.of(systemMessage,userMessage));
+        return chatModel.call(prompt).getResult().getOutput().getContent();
+    }
 }
